@@ -891,16 +891,18 @@ static int arducam_mega_fifo_read(const struct device *dev, struct video_buffer 
 	LOG_DBG("read fifo :%u. - fifo_length %u", buf->size, drv_data->fifo_length);
 
 	ret = arducam_mega_read_block(&cfg->bus, buf->buffer, rlen, drv_data->fifo_first_read);
-
-	if (ret == 0) {
-		drv_data->fifo_length -= rlen;
-		buf->bytesused = rlen;
-		if (drv_data->fifo_first_read) {
-			drv_data->fifo_first_read = 0;
-		}
+	if (ret < 0) {
+		LOG_ERR("Failed to read block (%d)", ret);
+		return ret;
 	}
 
-	return ret;
+	drv_data->fifo_length -= rlen;
+	buf->bytesused = rlen;
+	if (drv_data->fifo_first_read) {
+		drv_data->fifo_first_read = 0;
+	}
+
+	return 0;
 }
 
 static void arducam_mega_buffer_work(struct k_work *work)

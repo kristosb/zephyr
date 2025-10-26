@@ -108,7 +108,7 @@ enum mega_sharpness_level {
  * @brief Configure camera auto focus level
  */
 enum mega_auto_focus_level {
-	MEGA_AUTO_FOCUS_ON= 0,
+	MEGA_AUTO_FOCUS_ON = 0,
 	MEGA_AUTO_FOCUS_SINGLE,
 	MEGA_AUTO_FOCUS_CONT,
 	MEGA_AUTO_FOCUS_PAUSE,
