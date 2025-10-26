@@ -234,7 +234,7 @@ static int arducam_mega_write_reg(const struct spi_dt_spec *spec, uint8_t reg_ad
 	return 0;
 }
 
-static int arducam_mega_read_reg(const struct spi_dt_spec *spec, uint8_t reg_addr)
+static int arducam_mega_read_reg(const struct spi_dt_spec *spec, uint8_t reg_addr, uint32_t *val)
 {
 	uint8_t value;
 	int ret;
@@ -269,8 +269,9 @@ static int arducam_mega_read_reg(const struct spi_dt_spec *spec, uint8_t reg_add
 		/* If reading failed wait 5ms before next attempt */
 		k_msleep(5);
 	}
+	*val = value;
 
-	return value;
+	return 0;
 }
 
 static int arducam_mega_read_block(const struct spi_dt_spec *spec, uint8_t *img_buff,
@@ -294,12 +295,21 @@ static int arducam_mega_read_block(const struct spi_dt_spec *spec, uint8_t *img_
 	return spi_transceive_dt(spec, &tx_bufs, &rx_bufs);
 }
 
-static int arducam_mega_await_bus_idle(const struct spi_dt_spec *spec, uint8_t tries)
+static int arducam_mega_await_bus_idle(const struct spi_dt_spec *spec, int tries)
 {
-	while ((arducam_mega_read_reg(spec, CAM_REG_SENSOR_STATE) & 0x03) != SENSOR_STATE_IDLE) {
-		if (tries-- == 0) {
-			return -1;
+	uint32_t reg_data;
+	int ret;
+
+	for (; tries > 0; tries--) {
+		ret = arducam_mega_read_reg(spec, CAM_REG_SENSOR_STATE, &reg_data);
+		if (ret < 0) {
+			return ret;
 		}
+
+		if ((reg_data & 0x03) == SENSOR_STATE_IDLE) {
+			return 0;
+		}
+
 		k_msleep(2);
 	}
 
@@ -641,17 +651,22 @@ static int arducam_mega_set_resolution(const struct device *dev, enum mega_resol
 
 static int arducam_mega_check_connection(const struct device *dev)
 {
-	uint8_t cam_id;
+	uint32_t cam_id;
 	const struct arducam_mega_config *cfg = dev->config;
 	struct arducam_mega_data *drv_data = dev->data;
 
 	int ret = arducam_mega_await_bus_idle(&cfg->bus, 255);
+
 	if (ret < 0) {
 		LOG_ERR("Bus idle wait failed during connection check");
 		return ret;
 	}
 
-	cam_id = arducam_mega_read_reg(&cfg->bus, CAM_REG_SENSOR_ID);
+	ret = arducam_mega_read_reg(&cfg->bus, CAM_REG_SENSOR_ID, &cam_id);
+	if (ret < 0) {
+		LOG_ERR("Failed to read sensor ID");
+		return ret;
+	}
 	if (!(cam_id & 0x87)) {
 		LOG_ERR("arducam mega not detected, 0x%x\n", cam_id);
 		return -ENODEV;
@@ -819,22 +834,45 @@ static int arducam_mega_capture(const struct device *dev, uint32_t *length)
 {
 	const struct arducam_mega_config *cfg = dev->config;
 	struct arducam_mega_data *drv_data = dev->data;
-	uint8_t tries = 200;
+	int tries = 200;
+	int ret;
+	uint32_t reg_data;
 
 	arducam_mega_write_reg(&cfg->bus, ARDUCHIP_FIFO, FIFO_CLEAR_ID_MASK);
 	arducam_mega_write_reg(&cfg->bus, ARDUCHIP_FIFO, FIFO_START_MASK);
 
-	do {
-		if (tries-- == 0) {
+	for (; tries > 0; tries--) {
+		ret = arducam_mega_read_reg(&cfg->bus, ARDUCHIP_TRIG, &reg_data);
+		if (ret < 0) {
 			LOG_ERR("Capture timeout!");
-			return -1;
+			return ret;
 		}
-		k_msleep(2);
-	} while (!(arducam_mega_read_reg(&cfg->bus, ARDUCHIP_TRIG) & CAP_DONE_MASK));
 
-	drv_data->fifo_length = arducam_mega_read_reg(&cfg->bus, FIFO_SIZE1);
-	drv_data->fifo_length |= (arducam_mega_read_reg(&cfg->bus, FIFO_SIZE2) << 8);
-	drv_data->fifo_length |= (arducam_mega_read_reg(&cfg->bus, FIFO_SIZE3) << 16);
+		if (reg_data & CAP_DONE_MASK) {
+			return 0;
+		}
+
+		k_msleep(2);
+	}
+
+	ret = arducam_mega_read_reg(&cfg->bus, FIFO_SIZE1, &reg_data);
+	if (ret < 0) {
+		LOG_ERR("Failed to reset the fifo1 size (%d)", ret);
+		return ret;
+	}
+	drv_data->fifo_length = reg_data;
+	ret = arducam_mega_read_reg(&cfg->bus, FIFO_SIZE2, &reg_data);
+	if (ret < 0) {
+		LOG_ERR("Failed to reset the fifo2 size (%d)", ret);
+		return ret;
+	}
+	drv_data->fifo_length |= reg_data << 8;
+	ret = arducam_mega_read_reg(&cfg->bus, FIFO_SIZE3, &reg_data);
+	if (ret < 0) {
+		LOG_ERR("Failed to reset the fifo3 size (%d)", ret);
+		return ret;
+	}
+	drv_data->fifo_length |= reg_data << 16;
 
 	drv_data->fifo_first_read = 1;
 	*length = drv_data->fifo_length;
@@ -1130,6 +1168,7 @@ static int arducam_mega_init(const struct device *dev)
 
 	struct video_format fmt;
 	int ret = 0;
+	uint32_t reg_data;
 
 	if (!spi_is_ready_dt(&cfg->bus)) {
 		LOG_ERR("%s: device is not ready", cfg->bus.bus->name);
@@ -1156,10 +1195,37 @@ static int arducam_mega_init(const struct device *dev)
 		return ret;
 	}
 
-	uint8_t year = arducam_mega_read_reg(&cfg->bus, CAM_REG_YEAR_SDK) & 0x3F;
-	uint8_t month = arducam_mega_read_reg(&cfg->bus, CAM_REG_MONTH_SDK) & 0x0F;
-	uint8_t day = arducam_mega_read_reg(&cfg->bus, CAM_REG_DAY_SDK) & 0x1F;
-	uint8_t version = arducam_mega_read_reg(&cfg->bus, CAM_REG_FPGA_VERSION_NUMBER) & 0xfF;
+	ret = arducam_mega_read_reg(&cfg->bus, CAM_REG_YEAR_SDK, &reg_data);
+	if (ret < 0) {
+		LOG_ERR("Failed to read year (%d)", ret);
+		return ret;
+	}
+
+	uint8_t year = reg_data & 0x3F;
+
+	ret = arducam_mega_read_reg(&cfg->bus, CAM_REG_MONTH_SDK, &reg_data);
+	if (ret < 0) {
+		LOG_ERR("Failed to read month(%d)", ret);
+		return ret;
+	}
+
+	uint8_t month = reg_data & 0x0F;
+
+	ret = arducam_mega_read_reg(&cfg->bus, CAM_REG_DAY_SDK, &reg_data);
+	if (ret < 0) {
+		LOG_ERR("Failed to read day (%d)", ret);
+		return ret;
+	}
+
+	uint8_t day = reg_data & 0x1F;
+
+	ret = arducam_mega_read_reg(&cfg->bus, CAM_REG_FPGA_VERSION_NUMBER, &reg_data);
+	if (ret < 0) {
+		LOG_ERR("Failed to read version number (%d)", ret);
+		return ret;
+	}
+
+	uint8_t version = reg_data & 0xFF;
 
 	LOG_INF("arducam mega ver: %d-%d-%d \t %x", year, month, day, version);
 
