@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2023 Arducam Technology Co., Ltd. <www.arducam.com>
  * Copyright The Zephyr Project Contributors
- * 
+ *
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -205,7 +205,7 @@ static uint8_t support_resolution[SUPPORT_RESOLUTION_NUM] = {
 
 static int arducam_mega_write_reg(const struct spi_dt_spec *spec, uint8_t reg_addr, uint8_t value)
 {
-	uint8_t tries = 3;
+	uint8_t ret;
 
 	reg_addr |= 0x80;
 
@@ -216,21 +216,26 @@ static int arducam_mega_write_reg(const struct spi_dt_spec *spec, uint8_t reg_ad
 
 	struct spi_buf_set tx_bufs = {.buffers = tx_buf, .count = 2};
 
-	while (tries--) {
-		if (!spi_write_dt(spec, &tx_bufs)) {
-			return 0;
+	for (int tries = 3;; tries--) {
+		ret = spi_write_dt(spec, &tx_bufs);
+		if (ret < 0 && tries == 0) {
+			LOG_ERR("failed to write 0x%x to 0x%x", value, reg_addr);
+			return ret;
 		}
+
+		if (ret == 0) {
+			break;
+		}
+
 		/* If writing failed wait 5ms before next attempt */
 		k_msleep(5);
 	}
-	LOG_ERR("failed to write 0x%x to 0x%x", value, reg_addr);
 
-	return -1;
+	return 0;
 }
 
 static int arducam_mega_read_reg(const struct spi_dt_spec *spec, uint8_t reg_addr)
 {
-	uint8_t tries = 3;
 	uint8_t value;
 	uint8_t ret;
 
@@ -250,17 +255,22 @@ static int arducam_mega_read_reg(const struct spi_dt_spec *spec, uint8_t reg_add
 
 	struct spi_buf_set rx_bufs = {.buffers = rx_buf, .count = 3};
 
-	while (tries--) {
+	for (int tries = 3;; tries--) {
 		ret = spi_transceive_dt(spec, &tx_bufs, &rx_bufs);
-		if (!ret) {
-			return value;
+		if (ret < 0 && tries == 0) {
+			LOG_ERR("failed to read 0x%x register", reg_addr);
+			return ret;
 		}
+
+		if (ret == 0) {
+			break;
+		}
+
 		/* If reading failed wait 5ms before next attempt */
 		k_msleep(5);
 	}
-	LOG_ERR("failed to read 0x%x register", reg_addr);
 
-	return -1;
+	return value;
 }
 
 static int arducam_mega_read_block(const struct spi_dt_spec *spec, uint8_t *img_buff,
@@ -315,7 +325,7 @@ static int arducam_mega_write_reg_wait(const struct arducam_mega_bus *bus, uint1
 	return ret;
 }
 
-enum mega_ev_level get_ev_level(int value) {
+static enum mega_ev_level arducam_mega_get_ev_level(int value) {
 	static const enum mega_ev_level ev_level_map[] = {
 		MEGA_EV_LEVEL_NEGATIVE_3,
 		MEGA_EV_LEVEL_NEGATIVE_2,
@@ -359,7 +369,7 @@ static int arducam_mega_set_EV(const struct device *dev, int level)
 {
 	const struct arducam_mega_config *cfg = dev->config;
 
-	return arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EV_CONTROL, get_ev_level(level), 3);
+	return arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EV_CONTROL, arducam_mega_get_ev_level(level), 3);
 }
 
 static int arducam_mega_set_sharpness(const struct device *dev, enum mega_sharpness_level level)
