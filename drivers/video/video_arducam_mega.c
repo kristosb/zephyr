@@ -833,6 +833,11 @@ static int arducam_mega_soft_reset(const struct device *dev)
 	/* Initiate system reset */
 	int ret = arducam_mega_write_reg(&cfg->bus, CAM_REG_SENSOR_RESET, SENSOR_RESET_ENABLE);
 
+	if (ret < 0) {
+		LOG_ERR("Failed to reset the sensor (%d)", ret);
+		return ret;
+	}
+
 	k_msleep(1000);
 
 	return ret;
@@ -895,6 +900,7 @@ static void arducam_mega_buffer_work(struct k_work *work)
 		CONTAINER_OF(dwork, struct arducam_mega_data, buf_work);
 	static uint32_t f_timestamp, f_length;
 	struct video_buffer *vbuf;
+	int ret;
 
 	vbuf = k_fifo_get(&drv_data->fifo_in, K_FOREVER);
 
@@ -903,7 +909,10 @@ static void arducam_mega_buffer_work(struct k_work *work)
 		f_timestamp = k_uptime_get_32();
 	}
 
-	arducam_mega_fifo_read(drv_data->dev, vbuf);
+	ret = arducam_mega_fifo_read(drv_data->dev, vbuf);
+	if (ret < 0) {
+		LOG_ERR("failed to read a buffer (%d)", ret);
+	}
 
 	if (drv_data->fifo_length != 0) {
 		k_work_submit_to_queue(&ac_work_q, &drv_data->buf_work);
@@ -911,8 +920,6 @@ static void arducam_mega_buffer_work(struct k_work *work)
 
 	vbuf->timestamp = f_timestamp;
 	k_fifo_put(&drv_data->fifo_out, vbuf);
-
-	k_yield();
 }
 
 static int arducam_mega_enqueue(const struct device *dev, struct video_buffer *vbuf)
@@ -933,11 +940,11 @@ static int arducam_mega_dequeue(const struct device *dev, struct video_buffer **
 
 	*vbuf = k_fifo_get(&data->fifo_out, timeout);
 
-	LOG_DBG("dequeue buffer %p", (*vbuf)->buffer);
-
 	if (*vbuf == NULL) {
 		return -EAGAIN;
 	}
+
+	LOG_DBG("dequeue buffer %p", (*vbuf)->buffer);
 
 	return 0;
 }
