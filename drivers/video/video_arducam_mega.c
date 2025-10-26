@@ -442,6 +442,7 @@ static int arducam_mega_set_output_format(const struct device *dev, int output_f
 	}
 
 	int ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_FORMAT, format_val, 3);
+
 	if (ret < 0) {
 		return ret;
 	}
@@ -480,6 +481,7 @@ static int arducam_mega_set_white_bal_enable(const struct device *dev, int enabl
 
 	int ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EXPOSURE_GAIN_WHITEBAL_ENABLE, reg,
 					      3);
+
 	if (ret < 0) {
 		return ret;
 	}
@@ -504,12 +506,14 @@ static int arducam_mega_set_gain_enable(const struct device *dev, int enable)
 	const struct arducam_mega_config *cfg = dev->config;
 
 	uint8_t reg = CTR_GAIN;
+
 	if (enable) {
 		reg |= 0x80;
 	}
 
 	int ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EXPOSURE_GAIN_WHITEBAL_ENABLE, reg,
 					      3);
+
 	if (ret < 0) {
 		return ret;
 	}
@@ -573,6 +577,7 @@ static int arducam_mega_set_exposure_enable(const struct device *dev, int enable
 
 	int ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EXPOSURE_GAIN_WHITEBAL_ENABLE, reg,
 					      3);
+
 	if (ret < 0) {
 		return ret;
 	}
@@ -827,6 +832,7 @@ static int arducam_mega_soft_reset(const struct device *dev)
 	}
 	/* Initiate system reset */
 	int ret = arducam_mega_write_reg(&cfg->bus, CAM_REG_SENSOR_RESET, SENSOR_RESET_ENABLE);
+
 	k_msleep(1000);
 
 	return ret;
@@ -891,9 +897,6 @@ static void arducam_mega_buffer_work(struct k_work *work)
 	struct video_buffer *vbuf;
 
 	vbuf = k_fifo_get(&drv_data->fifo_in, K_FOREVER);
-	if (vbuf == NULL) {
-		return;
-	}
 
 	if (drv_data->fifo_length == 0) {
 		arducam_mega_capture(drv_data->dev, &f_length);
@@ -987,6 +990,7 @@ static int arducam_mega_set_ctrl(const struct device *dev, uint32_t id)
 		return arducam_mega_set_lowpower_enable(dev, drv_data->ctrls.lowpower.val);
 	case VIDEO_CID_ARDUCAM_RESET: {
 		int ret;
+
 		drv_data->ctrls.reset.val = 0;
 		ret = arducam_mega_soft_reset(dev);
 		if (ret < 0) {
@@ -1177,6 +1181,7 @@ static int arducam_mega_init(const struct device *dev)
 	uint8_t month = arducam_mega_read_reg(&cfg->bus, CAM_REG_MONTH_SDK) & 0x0F;
 	uint8_t day = arducam_mega_read_reg(&cfg->bus, CAM_REG_DAY_SDK) & 0x1F;
 	uint8_t version = arducam_mega_read_reg(&cfg->bus, CAM_REG_FPGA_VERSION_NUMBER) & 0xfF;
+
 	LOG_INF("arducam mega ver: %d-%d-%d \t %x", year, month, day, version);
 
 	/* set default/init format */
