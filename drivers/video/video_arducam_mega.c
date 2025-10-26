@@ -711,12 +711,8 @@ static int arducam_mega_check_connection(const struct device *dev)
 static int arducam_mega_set_fmt(const struct device *dev, struct video_format *fmt)
 {
 	struct arducam_mega_data *drv_data = dev->data;
-	uint16_t width, height;
 	int ret = 0;
 	int i = 0;
-
-	width = fmt->width;
-	height = fmt->height;
 
 	if (!memcmp(&drv_data->fmt, fmt, sizeof(drv_data->fmt))) {
 		/* nothing to do */
