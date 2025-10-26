@@ -731,29 +731,13 @@ static int arducam_mega_set_fmt(const struct device *dev, struct video_format *f
 		return 0;
 	}
 
-	/* Check if camera is capable of handling given format */
-	while (fmts[i].pixelformat) {
-		if (fmts[i].width_min == width && fmts[i].height_min == height &&
-		    fmts[i].pixelformat == fmt->pixelformat) {
-			/* Set output format */
-			ret = arducam_mega_set_output_format(dev, fmt->pixelformat);
-			if (ret < 0) {
-				LOG_ERR("Failed to set output format");
-				return ret;
-			}
-			/* Set window size */
-			ret = arducam_mega_set_resolution(
-				dev, support_resolution[i % SUPPORT_RESOLUTION_NUM]);
-			if (ret < 0) {
-				LOG_ERR("Failed to set resolution");
-				return ret;
-			}
-			drv_data->fmt = *fmt;
-			drv_data->fmt.pitch = drv_data->fmt.width * 2;
-			return ret;
-		}
-		i++;
+	ret = video_format_caps_index(fmts, fmt, &i);
+	if (ret) {
+		LOG_ERR("Unsupported pixel format or resolution %s %ux%u",
+				VIDEO_FOURCC_TO_STR(fmt->pixelformat), fmt->width, fmt->height);
+		return ret;
 	}
+
 	/* Camera is not capable of handling given format */
 	LOG_ERR("Image resolution not supported\n");
 	return -ENOTSUP;
