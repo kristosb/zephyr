@@ -715,14 +715,6 @@ static int arducam_mega_set_fmt(const struct device *dev, struct video_format *f
 	int ret = 0;
 	int i = 0;
 
-	/* We only support RGB565, JPEG, and YUYV pixel formats */
-	if (fmt->pixelformat != VIDEO_PIX_FMT_RGB565 && fmt->pixelformat != VIDEO_PIX_FMT_JPEG &&
-	    fmt->pixelformat != VIDEO_PIX_FMT_YUYV) {
-		LOG_ERR("Arducam Mega camera only supports RGB565, JPG, and YUYV pixel "
-			"formats!");
-		return -ENOTSUP;
-	}
-
 	width = fmt->width;
 	height = fmt->height;
 
