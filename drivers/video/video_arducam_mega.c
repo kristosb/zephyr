@@ -205,7 +205,7 @@ static uint8_t support_resolution[SUPPORT_RESOLUTION_NUM] = {
 
 static int arducam_mega_write_reg(const struct spi_dt_spec *spec, uint8_t reg_addr, uint8_t value)
 {
-	uint8_t ret;
+	int ret;
 
 	reg_addr |= 0x80;
 
@@ -237,7 +237,7 @@ static int arducam_mega_write_reg(const struct spi_dt_spec *spec, uint8_t reg_ad
 static int arducam_mega_read_reg(const struct spi_dt_spec *spec, uint8_t reg_addr)
 {
 	uint8_t value;
-	uint8_t ret;
+	int ret;
 
 	reg_addr &= 0x7F;
 
