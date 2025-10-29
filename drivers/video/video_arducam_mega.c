@@ -965,8 +965,6 @@ static int arducam_mega_get_caps(const struct device *dev, struct video_caps *ca
 {
 	/* Arducam in capture mode needs only one buffer allocated before starting */
 	caps->min_vbuf_count = 1;
-	/* Arducam produces full frames */
-	caps->min_line_count = caps->max_line_count = LINE_COUNT_HEIGHT;
 	caps->format_caps = fmts;
 	return 0;
 }
