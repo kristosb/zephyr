@@ -20,19 +20,19 @@
 LOG_MODULE_REGISTER(mega_camera);
 
 /* Arducam specific camera controls */
-#define VIDEO_CID_ARDUCAM_RESET			(VIDEO_CID_PRIVATE_BASE + 5)
-#define VIDEO_CID_ARDUCAM_LOWPOWER		(VIDEO_CID_PRIVATE_BASE + 6)
+#define VIDEO_CID_ARDUCAM_RESET    (VIDEO_CID_PRIVATE_BASE + 5)
+#define VIDEO_CID_ARDUCAM_LOWPOWER (VIDEO_CID_PRIVATE_BASE + 6)
 
 /* Read only registers */
-#define VIDEO_CID_ARDUCAM_SUPP_RES		(VIDEO_CID_PRIVATE_BASE + 7)
-#define VIDEO_CID_ARDUCAM_SUPP_SP_EFF	(VIDEO_CID_PRIVATE_BASE + 8)
+#define VIDEO_CID_ARDUCAM_SUPP_RES    (VIDEO_CID_PRIVATE_BASE + 7)
+#define VIDEO_CID_ARDUCAM_SUPP_SP_EFF (VIDEO_CID_PRIVATE_BASE + 8)
 
 /* Info default settings */
-#define SUPPORT_RESOLUTION_5M	7894
-#define SUPPORT_SP_EFF_5M		63
+#define SUPPORT_RESOLUTION_5M 7894
+#define SUPPORT_SP_EFF_5M     63
 
-#define SUPPORT_RESOLUTION_3M	7638
-#define SUPPORT_SP_EFF_3M		319
+#define SUPPORT_RESOLUTION_3M 7638
+#define SUPPORT_SP_EFF_3M     319
 
 #define DEVICE_ADDRESS 0x78
 
@@ -469,19 +469,17 @@ static int arducam_mega_write_reg_wait(const struct arducam_mega_bus *bus, uint1
 	return ret;
 }
 
-static enum mega_ev_level arducam_mega_get_ev_level(int value) {
+static enum mega_ev_level arducam_mega_get_ev_level(int value)
+{
 	static const enum mega_ev_level ev_level_map[] = {
-		MEGA_EV_LEVEL_NEGATIVE_3,
-		MEGA_EV_LEVEL_NEGATIVE_2,
-		MEGA_EV_LEVEL_NEGATIVE_1,
-		MEGA_EV_LEVEL_DEFAULT,
-		MEGA_EV_LEVEL_1,
-		MEGA_EV_LEVEL_2,
+		MEGA_EV_LEVEL_NEGATIVE_3, MEGA_EV_LEVEL_NEGATIVE_2, MEGA_EV_LEVEL_NEGATIVE_1,
+		MEGA_EV_LEVEL_DEFAULT,    MEGA_EV_LEVEL_1,          MEGA_EV_LEVEL_2,
 		MEGA_EV_LEVEL_3,
 	};
 
 	int index = value + 3;
-	if (index >= 0 && index < sizeof(ev_level_map) / sizeof(ev_level_map[0])) {
+
+	if (index >= 0 && index < ARRAY_SIZE(ev_level_map) / sizeof(ev_level_map[0])) {
 		return ev_level_map[index];
 	} else {
 		return MEGA_EV_LEVEL_DEFAULT;
@@ -513,7 +511,8 @@ static int arducam_mega_set_EV(const struct device *dev, int level)
 {
 	const struct arducam_mega_config *cfg = dev->config;
 
-	return arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EV_CONTROL, arducam_mega_get_ev_level(level), 3);
+	return arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EV_CONTROL,
+					   arducam_mega_get_ev_level(level), 3);
 }
 
 static int arducam_mega_set_sharpness(const struct device *dev, enum mega_sharpness_level level)
@@ -619,6 +618,7 @@ static int arducam_mega_set_white_bal_enable(const struct device *dev, int enabl
 	const struct arducam_mega_config *cfg = dev->config;
 
 	uint8_t reg = CTR_WHITEBALANCE;
+
 	if (enable) {
 		reg |= 0x80;
 	}
@@ -715,6 +715,7 @@ static int arducam_mega_set_exposure_enable(const struct device *dev, int enable
 	const struct arducam_mega_config *cfg = dev->config;
 
 	uint8_t reg = CTR_EXPOSURE;
+
 	if (enable) {
 		reg |= 0x80;
 	}
@@ -871,7 +872,7 @@ static int arducam_mega_set_fmt(const struct device *dev, struct video_format *f
 	ret = video_format_caps_index(fmts, fmt, &i);
 	if (ret) {
 		LOG_ERR("Unsupported pixel format or resolution %s %ux%u",
-				VIDEO_FOURCC_TO_STR(fmt->pixelformat), fmt->width, fmt->height);
+			VIDEO_FOURCC_TO_STR(fmt->pixelformat), fmt->width, fmt->height);
 		return ret;
 	}
 
@@ -1230,9 +1231,10 @@ static int arducam_mega_init_controls(const struct device *dev)
 	if (ret < 0) {
 		return ret;
 	}
-	if (drv_data->features & MEGA_HAS_SHARPNESS){
-		ret = video_init_ctrl(&ctrls->sharpness, dev, VIDEO_CID_SHARPNESS,
-					(struct video_ctrl_range){.min = 0, .max = 8, .step = 1, .def = 0});
+	if (drv_data->features & MEGA_HAS_SHARPNESS) {
+		ret = video_init_ctrl(
+			&ctrls->sharpness, dev, VIDEO_CID_SHARPNESS,
+			(struct video_ctrl_range){.min = 0, .max = 8, .step = 1, .def = 0});
 		if (ret < 0) {
 			return ret;
 		}
@@ -1243,9 +1245,9 @@ static int arducam_mega_init_controls(const struct device *dev)
 	if (ret < 0) {
 		return ret;
 	}
-	ret = video_init_ctrl(&ctrls->exposure, dev, VIDEO_CID_EXPOSURE,
-			      (struct video_ctrl_range){
-				      .min = 0, .max = 30000, .step = 1, .def = 0});
+	ret = video_init_ctrl(
+		&ctrls->exposure, dev, VIDEO_CID_EXPOSURE,
+		(struct video_ctrl_range){.min = 0, .max = 30000, .step = 1, .def = 0});
 	if (ret < 0) {
 		return ret;
 	}
@@ -1261,7 +1263,7 @@ static int arducam_mega_init_controls(const struct device *dev)
 	if (ret < 0) {
 		return ret;
 	}
-	if (drv_data->features & MEGA_HAS_FOCUS){
+	if (drv_data->features & MEGA_HAS_FOCUS) {
 		ret = video_init_ctrl(
 			&ctrls->focus_auto, dev, VIDEO_CID_FOCUS_AUTO,
 			(struct video_ctrl_range){.min = 0, .max = 65535, .step = 1, .def = 0});
