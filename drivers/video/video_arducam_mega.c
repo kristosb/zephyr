@@ -994,7 +994,7 @@ static int arducam_mega_set_ctrl(const struct device *dev, uint32_t id)
 		return arducam_mega_set_contrast(dev, drv_data->ctrls.contrast.val);
 	case VIDEO_CID_JPEG_COMPRESSION_QUALITY:
 		return arducam_mega_set_JPEG_quality(dev, drv_data->ctrls.quality.val);
-	case VIDEO_CID_ARDUCAM_EV:
+	case VIDEO_CID_AUTO_EXPOSURE_BIAS:
 		return arducam_mega_set_EV(dev, drv_data->ctrls.ev.val);
 	case VIDEO_CID_SHARPNESS:
 		return arducam_mega_set_sharpness(dev, drv_data->ctrls.sharpness.val);
@@ -1066,7 +1066,7 @@ static int arducam_mega_init_controls(const struct device *dev)
 	if (ret < 0) {
 		return ret;
 	}
-	ret = video_init_ctrl(&ctrls->ev, dev, VIDEO_CID_ARDUCAM_EV,
+	ret = video_init_ctrl(&ctrls->ev, dev, VIDEO_CID_AUTO_EXPOSURE_BIAS,
 			      (struct video_ctrl_range){.min = 0, .max = 6, .step = 1, .def = 0});
 	if (ret < 0) {
 		return ret;

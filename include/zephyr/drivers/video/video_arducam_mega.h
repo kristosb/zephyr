@@ -12,7 +12,6 @@ extern "C" {
 #endif
 
 /* Arducam specific camera controls */
-#define VIDEO_CID_ARDUCAM_EV			(VIDEO_CID_PRIVATE_BASE + 1)
 #define VIDEO_CID_ARDUCAM_RESET			(VIDEO_CID_PRIVATE_BASE + 5)
 #define VIDEO_CID_ARDUCAM_LOWPOWER		(VIDEO_CID_PRIVATE_BASE + 6)
 
