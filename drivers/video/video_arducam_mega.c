@@ -339,7 +339,7 @@ static uint8_t support_resolution[SUPPORT_RESOLUTION_NUM] = {
 
 static int arducam_mega_write_reg(const struct spi_dt_spec *spec, uint8_t reg_addr, uint8_t value)
 {
-	int ret;
+	int ret = 0;
 
 	reg_addr |= 0x80;
 
@@ -371,7 +371,7 @@ static int arducam_mega_write_reg(const struct spi_dt_spec *spec, uint8_t reg_ad
 static int arducam_mega_read_reg(const struct spi_dt_spec *spec, uint8_t reg_addr, uint32_t *val)
 {
 	uint8_t value;
-	int ret;
+	int ret = 0;
 
 	reg_addr &= 0x7F;
 
@@ -432,7 +432,7 @@ static int arducam_mega_read_block(const struct spi_dt_spec *spec, uint8_t *img_
 static int arducam_mega_await_bus_idle(const struct spi_dt_spec *spec, int tries)
 {
 	uint32_t reg_data;
-	int ret;
+	int ret = 0;
 
 	for (; tries > 0; tries--) {
 		ret = arducam_mega_read_reg(spec, CAM_REG_SENSOR_STATE, &reg_data);
@@ -453,7 +453,7 @@ static int arducam_mega_await_bus_idle(const struct spi_dt_spec *spec, int tries
 static int arducam_mega_write_reg_wait(const struct arducam_mega_bus *bus, uint16_t reg,
 				       uint8_t value, uint32_t idle_timeout_ms)
 {
-	int ret;
+	int ret = 0;
 
 	ret = arducam_mega_await_bus_idle(bus, idle_timeout_ms);
 	if (ret < 0) {
@@ -568,6 +568,7 @@ static int arducam_mega_set_output_format(const struct device *dev, int output_f
 {
 	const struct arducam_mega_config *cfg = dev->config;
 	uint8_t format_val;
+	int ret = 0;
 
 	switch (output_format) {
 	case VIDEO_PIX_FMT_JPEG:
@@ -584,8 +585,7 @@ static int arducam_mega_set_output_format(const struct device *dev, int output_f
 		return -ENOTSUP;
 	}
 
-	int ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_FORMAT, format_val, 3);
-
+	ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_FORMAT, format_val, 3);
 	if (ret < 0) {
 		return ret;
 	}
@@ -616,16 +616,14 @@ static int arducam_mega_set_JPEG_quality(const struct device *dev, enum mega_ima
 static int arducam_mega_set_white_bal_enable(const struct device *dev, int enable)
 {
 	const struct arducam_mega_config *cfg = dev->config;
-
+	int ret = 0;
 	uint8_t reg = CTR_WHITEBALANCE;
 
 	if (enable) {
 		reg |= 0x80;
 	}
 
-	int ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EXPOSURE_GAIN_WHITEBAL_ENABLE, reg,
-					      3);
-
+	ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EXPOSURE_GAIN_WHITEBAL_ENABLE, reg, 3);
 	if (ret < 0) {
 		return ret;
 	}
@@ -648,16 +646,14 @@ static int arducam_mega_set_white_bal(const struct device *dev, enum mega_white_
 static int arducam_mega_set_gain_enable(const struct device *dev, int enable)
 {
 	const struct arducam_mega_config *cfg = dev->config;
-
+	int ret = 0;
 	uint8_t reg = CTR_GAIN;
 
 	if (enable) {
 		reg |= 0x80;
 	}
 
-	int ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EXPOSURE_GAIN_WHITEBAL_ENABLE, reg,
-					      3);
-
+	ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EXPOSURE_GAIN_WHITEBAL_ENABLE, reg, 3);
 	if (ret < 0) {
 		return ret;
 	}
@@ -689,7 +685,7 @@ static int arducam_mega_set_lowpower_enable(const struct device *dev, int enable
 static int arducam_mega_set_gain(const struct device *dev, uint16_t value)
 {
 	const struct arducam_mega_config *cfg = dev->config;
-	int ret;
+	int ret = 0;
 
 	ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_MANUAL_GAIN_BIT_9_8,
 					  (value >> 8) & 0xFF, 3);
@@ -713,16 +709,14 @@ static int arducam_mega_set_gain(const struct device *dev, uint16_t value)
 static int arducam_mega_set_exposure_enable(const struct device *dev, int enable)
 {
 	const struct arducam_mega_config *cfg = dev->config;
-
+	int ret = 0;
 	uint8_t reg = CTR_EXPOSURE;
 
 	if (enable) {
 		reg |= 0x80;
 	}
 
-	int ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EXPOSURE_GAIN_WHITEBAL_ENABLE, reg,
-					      3);
-
+	ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_EXPOSURE_GAIN_WHITEBAL_ENABLE, reg, 3);
 	if (ret < 0) {
 		return ret;
 	}
@@ -738,7 +732,7 @@ static int arducam_mega_set_exposure_enable(const struct device *dev, int enable
 static int arducam_mega_set_exposure(const struct device *dev, uint32_t value)
 {
 	const struct arducam_mega_config *cfg = dev->config;
-	int ret;
+	int ret = 0;
 
 	ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_MANUAL_EXPOSURE_BIT_19_16,
 					  (value >> 16) & 0xFF, 3);
@@ -769,9 +763,9 @@ static int arducam_mega_set_exposure(const struct device *dev, uint32_t value)
 static int arducam_mega_set_resolution(const struct device *dev, enum mega_resolution resolution)
 {
 	const struct arducam_mega_config *cfg = dev->config;
+	int ret = 0;
 
-	int ret =
-		arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_CAPTURE_RESOLUTION, resolution, 10);
+	ret = arducam_mega_write_reg_wait(&cfg->bus, CAM_REG_CAPTURE_RESOLUTION, resolution, 10);
 	if (ret < 0) {
 		return ret;
 	}
@@ -789,9 +783,9 @@ static int arducam_mega_check_connection(const struct device *dev)
 	uint32_t cam_id;
 	const struct arducam_mega_config *cfg = dev->config;
 	struct arducam_mega_data *drv_data = dev->data;
+	int ret = 0;
 
-	int ret = arducam_mega_await_bus_idle(&cfg->bus, 255);
-
+	ret = arducam_mega_await_bus_idle(&cfg->bus, 255);
 	if (ret < 0) {
 		LOG_ERR("Bus idle wait failed during connection check");
 		return ret;
@@ -948,13 +942,13 @@ static int arducam_mega_soft_reset(const struct device *dev)
 {
 	const struct arducam_mega_config *cfg = dev->config;
 	struct arducam_mega_data *drv_data = dev->data;
+	int ret = 0;
 
 	if (drv_data->stream_on) {
 		arducam_mega_stream_stop(dev);
 	}
 	/* Initiate system reset */
-	int ret = arducam_mega_write_reg(&cfg->bus, CAM_REG_SENSOR_RESET, SENSOR_RESET_ENABLE);
-
+	ret = arducam_mega_write_reg(&cfg->bus, CAM_REG_SENSOR_RESET, SENSOR_RESET_ENABLE);
 	if (ret < 0) {
 		LOG_ERR("Failed to reset the sensor (%d)", ret);
 		return ret;
@@ -970,7 +964,7 @@ static int arducam_mega_capture(const struct device *dev, uint32_t *length)
 	const struct arducam_mega_config *cfg = dev->config;
 	struct arducam_mega_data *drv_data = dev->data;
 	int tries = 200;
-	int ret;
+	int ret = 0;
 	uint32_t reg_data;
 
 	arducam_mega_write_reg(&cfg->bus, ARDUCHIP_FIFO, FIFO_CLEAR_ID_MASK);
@@ -1016,7 +1010,7 @@ static int arducam_mega_capture(const struct device *dev, uint32_t *length)
 
 static int arducam_mega_fifo_read(const struct device *dev, struct video_buffer *buf)
 {
-	int ret;
+	int ret = 0;
 	int32_t rlen;
 	const struct arducam_mega_config *cfg = dev->config;
 	struct arducam_mega_data *drv_data = dev->data;
@@ -1047,9 +1041,9 @@ static void arducam_mega_buffer_work(struct k_work *work)
 		CONTAINER_OF(dwork, struct arducam_mega_data, buf_work);
 	static uint32_t f_timestamp, f_length;
 	struct video_buffer *vbuf;
-	int ret;
+	int ret = 0;
 
-	vbuf = k_fifo_get(&drv_data->fifo_in, K_FOREVER);
+	vbuf = k_fifo_get(&drv_data->fifo_in, K_NO_WAIT);
 
 	if (drv_data->fifo_length == 0) {
 		arducam_mega_capture(drv_data->dev, &f_length);
@@ -1086,7 +1080,6 @@ static int arducam_mega_dequeue(const struct device *dev, struct video_buffer **
 	struct arducam_mega_data *data = dev->data;
 
 	*vbuf = k_fifo_get(&data->fifo_out, timeout);
-
 	if (*vbuf == NULL) {
 		return -EAGAIN;
 	}
@@ -1107,6 +1100,7 @@ static int arducam_mega_get_caps(const struct device *dev, struct video_caps *ca
 static int arducam_mega_set_ctrl(const struct device *dev, uint32_t id)
 {
 	struct arducam_mega_data *drv_data = dev->data;
+	int ret = 0;
 
 	switch (id) {
 	case VIDEO_CID_EXPOSURE_AUTO:
@@ -1141,8 +1135,6 @@ static int arducam_mega_set_ctrl(const struct device *dev, uint32_t id)
 	case VIDEO_CID_ARDUCAM_LOWPOWER:
 		return arducam_mega_set_lowpower_enable(dev, drv_data->ctrls.lowpower.val);
 	case VIDEO_CID_ARDUCAM_RESET: {
-		int ret;
-
 		drv_data->ctrls.reset.val = 0;
 		ret = arducam_mega_soft_reset(dev);
 		if (ret < 0) {
@@ -1177,7 +1169,7 @@ const int64_t arducam_mega_link_frequency[] = {
 
 static int arducam_mega_init_controls(const struct device *dev)
 {
-	int ret;
+	int ret = 0;
 	struct arducam_mega_data *drv_data = dev->data;
 	struct arducam_mega_ctrls *ctrls = &drv_data->ctrls;
 
@@ -1323,11 +1315,15 @@ static int arducam_mega_init(const struct device *dev)
 
 	k_work_init(&drv_data->buf_work, arducam_mega_buffer_work);
 
-	arducam_mega_soft_reset(dev);
-	ret = arducam_mega_check_connection(dev);
-
+	ret = arducam_mega_soft_reset(dev);
 	if (ret < 0) {
-		LOG_ERR("arducam mega camera not connection.\n");
+		LOG_ERR("arducam mega camera reset failed.\n");
+		return ret;
+	}
+
+	ret = arducam_mega_check_connection(dev);
+	if (ret < 0) {
+		LOG_ERR("arducam mega camera no connection.\n");
 		return ret;
 	}
 
@@ -1374,14 +1370,14 @@ static int arducam_mega_init(const struct device *dev)
 	ret = arducam_mega_set_fmt(dev, &fmt);
 	if (ret < 0) {
 		LOG_ERR("Unable to configure default format");
-		return -EIO;
+		return ret;
 	}
 	ret = arducam_mega_init_controls(dev);
 	if (ret < 0) {
 		LOG_ERR("Unable to initialize controls");
-		return -EIO;
+		return ret;
 	}
-	return ret;
+	return 0;
 }
 
 #define ARDUCAM_MEGA_INIT(inst)                                                                    \
