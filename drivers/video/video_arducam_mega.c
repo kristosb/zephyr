@@ -396,7 +396,7 @@ static int arducam_mega_read_reg(const struct spi_dt_spec *spec, uint8_t reg_add
 			return ret;
 		}
 
-		if (ret == 0) {
+		if (ret >= 0) {
 			break;
 		}
 
@@ -1042,6 +1042,9 @@ static void arducam_mega_buffer_work(struct k_work *work)
 	int ret = 0;
 
 	vbuf = k_fifo_get(&drv_data->fifo_in, K_NO_WAIT);
+	if (vbuf == NULL) {
+		k_work_submit_to_queue(&ac_work_q, &drv_data->buf_work);
+	}
 
 	if (drv_data->fifo_length == 0) {
 		arducam_mega_capture(drv_data->dev, &f_length);
