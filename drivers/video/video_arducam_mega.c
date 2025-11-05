@@ -1044,6 +1044,7 @@ static void arducam_mega_buffer_work(struct k_work *work)
 	vbuf = k_fifo_get(&drv_data->fifo_in, K_NO_WAIT);
 	if (vbuf == NULL) {
 		k_work_submit_to_queue(&ac_work_q, &drv_data->buf_work);
+		return;
 	}
 
 	if (drv_data->fifo_length == 0) {
@@ -1054,6 +1055,7 @@ static void arducam_mega_buffer_work(struct k_work *work)
 	ret = arducam_mega_fifo_read(drv_data->dev, vbuf);
 	if (ret < 0) {
 		LOG_ERR("failed to read a buffer (%d)", ret);
+		return;
 	}
 
 	if (drv_data->fifo_length != 0) {
