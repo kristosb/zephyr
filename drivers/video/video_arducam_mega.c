@@ -12,20 +12,13 @@
 #include <zephyr/drivers/video-controls.h>
 #include <zephyr/drivers/video.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/drivers/video/arducam_mega.h>
 
 #include "video_common.h"
 #include "video_ctrls.h"
 #include "video_device.h"
 
-LOG_MODULE_REGISTER(mega_camera);
-
-/* Arducam specific camera controls */
-#define VIDEO_CID_ARDUCAM_RESET    (VIDEO_CID_PRIVATE_BASE + 5)
-#define VIDEO_CID_ARDUCAM_LOWPOWER (VIDEO_CID_PRIVATE_BASE + 6)
-
-/* Read only registers */
-#define VIDEO_CID_ARDUCAM_SUPP_RES    (VIDEO_CID_PRIVATE_BASE + 7)
-#define VIDEO_CID_ARDUCAM_SUPP_SP_EFF (VIDEO_CID_PRIVATE_BASE + 8)
+LOG_MODULE_REGISTER(mega_camera, CONFIG_VIDEO_LOG_LEVEL);
 
 /* Info default settings */
 #define SUPPORT_RESOLUTION_5M 7894
@@ -33,8 +26,6 @@ LOG_MODULE_REGISTER(mega_camera);
 
 #define SUPPORT_RESOLUTION_3M 7638
 #define SUPPORT_SP_EFF_3M     319
-
-#define DEVICE_ADDRESS 0x78
 
 /* Configure camera contrast level */
 enum mega_contrast_level {
@@ -248,8 +239,6 @@ struct arducam_mega_ctrls {
 	struct video_ctrl support_resolution;
 	struct video_ctrl support_special_effects;
 	struct video_ctrl linkfreq;
-	struct video_ctrl device_address;
-	struct video_ctrl camera_id;
 };
 
 struct arducam_mega_data {
@@ -266,6 +255,7 @@ struct arducam_mega_data {
 	uint32_t fifo_length;
 	uint8_t stream_on;
 	uint32_t features;
+	uint32_t camera_id;
 };
 
 #define ARDUCAM_MEGA_VIDEO_FORMAT_CAP(width, height, format)                                       \
@@ -670,10 +660,9 @@ static int arducam_mega_set_lowpower_enable(const struct device *dev, int enable
 {
 	const struct arducam_mega_config *cfg = dev->config;
 	const struct arducam_mega_data *drv_data = dev->data;
-	struct arducam_mega_ctrls *drv_ctrls = &drv_data->ctrls;
 
-	if (drv_ctrls->camera_id.val == ARDUCAM_SENSOR_5MP_2 ||
-	    drv_ctrls->camera_id.val == ARDUCAM_SENSOR_3MP_2) {
+	if (drv_data->camera_id == ARDUCAM_SENSOR_5MP_2 ||
+	    drv_data->camera_id == ARDUCAM_SENSOR_3MP_2) {
 		enable = !enable;
 	}
 
@@ -814,7 +803,6 @@ static int arducam_mega_check_connection(const struct device *dev)
 
 		drv_data->ctrls.support_resolution.val = SUPPORT_RESOLUTION_5M;
 		drv_data->ctrls.support_special_effects.val = SUPPORT_SP_EFF_5M;
-		drv_data->ctrls.device_address.val = DEVICE_ADDRESS;
 		drv_data->features |= MEGA_HAS_FOCUS;
 		break;
 	case ARDUCAM_SENSOR_3MP_1:
@@ -828,7 +816,6 @@ static int arducam_mega_check_connection(const struct device *dev)
 		support_resolution[8] = MEGA_RESOLUTION_QXGA;
 		drv_data->ctrls.support_resolution.val = SUPPORT_RESOLUTION_3M;
 		drv_data->ctrls.support_special_effects.val = SUPPORT_SP_EFF_3M;
-		drv_data->ctrls.device_address.val = DEVICE_ADDRESS;
 		drv_data->features |= MEGA_HAS_SHARPNESS;
 		break;
 	case ARDUCAM_SENSOR_5MP_2:
@@ -841,13 +828,12 @@ static int arducam_mega_check_connection(const struct device *dev)
 		support_resolution[8] = MEGA_RESOLUTION_WQXGA2;
 		drv_data->ctrls.support_resolution.val = SUPPORT_RESOLUTION_5M;
 		drv_data->ctrls.support_special_effects.val = SUPPORT_SP_EFF_5M;
-		drv_data->ctrls.device_address.val = DEVICE_ADDRESS;
 		drv_data->features |= MEGA_HAS_FOCUS;
 		break;
 	default:
 		return -ENODEV;
 	}
-	drv_data->ctrls.camera_id.val = cam_id;
+	drv_data->camera_id = cam_id;
 
 	return ret;
 }
@@ -1369,7 +1355,7 @@ static int arducam_mega_init(const struct device *dev)
 	fmt.pixelformat = VIDEO_PIX_FMT_RGB565;
 	fmt.width = 320;
 	fmt.height = 240;
-	fmt.pitch = 320 * video_bits_per_pixel(VIDEO_PIX_FMT_RGB565) / BITS_PER_BYTE;
+
 	ret = arducam_mega_set_fmt(dev, &fmt);
 	if (ret < 0) {
 		LOG_ERR("Unable to configure default format");
@@ -1392,8 +1378,7 @@ static int arducam_mega_init(const struct device *dev)
 					    0),                                                    \
 	};                                                                                         \
                                                                                                    \
-	static struct arducam_mega_data arducam_mega_data_##inst = {                               \
-		.fmt = {VIDEO_BUF_TYPE_OUTPUT, VIDEO_PIX_FMT_RGB565, 320, 240, 0}};                \
+	static struct arducam_mega_data arducam_mega_data_##inst;                                  \
                                                                                                    \
 	DEVICE_DT_INST_DEFINE(inst, &arducam_mega_init, NULL, &arducam_mega_data_##inst,           \
 			      &arducam_mega_cfg_##inst, POST_KERNEL, CONFIG_VIDEO_INIT_PRIORITY,   \
