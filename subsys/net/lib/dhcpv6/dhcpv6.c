@@ -14,6 +14,7 @@ LOG_MODULE_REGISTER(net_dhcpv6, CONFIG_NET_DHCPV6_LOG_LEVEL);
 #include <zephyr/net/dhcpv6.h>
 #include <zephyr/net/dns_resolve.h>
 #include <zephyr/net/net_ip.h>
+#include <zephyr/net/net_log.h>
 #include <zephyr/random/random.h>
 #include <zephyr/sys/math_extras.h>
 
@@ -2358,7 +2359,7 @@ void net_dhcpv6_restart(struct net_if *iface)
 
 int net_dhcpv6_init(void)
 {
-	struct net_sockaddr unspec_addr;
+	struct net_sockaddr unspec_addr = {0};
 	int ret;
 
 	net_ipaddr_copy(&net_sin6(&unspec_addr)->sin6_addr,

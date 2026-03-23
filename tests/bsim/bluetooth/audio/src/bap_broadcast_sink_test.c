@@ -11,8 +11,8 @@
 #include <string.h>
 
 #include <zephyr/autoconf.h>
-#include <zephyr/autoconf.h>
 #include <zephyr/bluetooth/addr.h>
+#include <zephyr/bluetooth/assigned_numbers.h>
 #include <zephyr/bluetooth/audio/audio.h>
 #include <zephyr/bluetooth/audio/bap.h>
 #include <zephyr/bluetooth/audio/bap_lc3_preset.h>
@@ -565,6 +565,7 @@ static void stream_started_cb(struct bt_bap_stream *stream)
 {
 	struct audio_test_stream *test_stream = audio_test_stream_from_bap_stream(stream);
 	struct bt_bap_ep_info info;
+	struct bt_conn *ep_conn;
 	int err;
 
 	memset(&test_stream->last_info, 0, sizeof(test_stream->last_info));
@@ -600,6 +601,12 @@ static void stream_started_cb(struct bt_bap_stream *stream)
 
 	if (info.paired_ep != NULL) {
 		FAIL("Unexpected info.paired_ep: %p\n", info.paired_ep);
+		return;
+	}
+
+	ep_conn = bt_bap_ep_get_conn(stream->ep);
+	if (ep_conn != NULL) {
+		FAIL("Invalid conn from endpoint: %p", ep_conn);
 		return;
 	}
 

@@ -25,6 +25,12 @@
 
 LOG_MODULE_REGISTER(qdec_stm32, CONFIG_SENSOR_LOG_LEVEL);
 
+#ifdef CONFIG_STM32_HAL2
+#define STM32_TIM_ACTIVEINPUT_DIRECT	LL_TIM_ACTIVEINPUT_DIRECT
+#else /* CONFIG_STM32_HAL2 */
+#define STM32_TIM_ACTIVEINPUT_DIRECT	LL_TIM_ACTIVEINPUT_DIRECTTI
+#endif /* CONFIG_STM32_HAL2 */
+
 /* Device constant configuration parameters */
 struct qdec_stm32_dev_cfg {
 	const struct pinctrl_dev_config *pin_config;
@@ -39,23 +45,29 @@ struct qdec_stm32_dev_cfg {
 /* Device run time data */
 struct qdec_stm32_dev_data {
 	uint32_t position;
+	uint32_t counts;
 };
 
 static int qdec_stm32_fetch(const struct device *dev, enum sensor_channel chan)
 {
 	struct qdec_stm32_dev_data *dev_data = dev->data;
 	const struct qdec_stm32_dev_cfg *dev_cfg = dev->config;
+	uint32_t total_counter_value;
 	uint32_t counter_value;
 
-	if ((chan != SENSOR_CHAN_ALL) && (chan != SENSOR_CHAN_ROTATION)) {
+	if ((chan != SENSOR_CHAN_ALL) &&
+	    (chan != SENSOR_CHAN_ROTATION) && (chan != SENSOR_CHAN_ENCODER_COUNT)) {
 		return -ENOTSUP;
 	}
+
+	total_counter_value = LL_TIM_GetCounter(dev_cfg->timer_inst);
+	dev_data->counts = total_counter_value;
 
 	/* We're only interested in the remainder between the current counter value and
 	 * counts_per_revolution. The integer part represents an entire rotation so it
 	 * can be ignored
 	 */
-	counter_value = LL_TIM_GetCounter(dev_cfg->timer_inst) % dev_cfg->counts_per_revolution;
+	counter_value = total_counter_value % dev_cfg->counts_per_revolution;
 
 	/* The angle calculated in the fixed-point format (Q26.6 format) */
 	dev_data->position = (counter_value * 23040) / dev_cfg->counts_per_revolution;
@@ -71,6 +83,9 @@ static int qdec_stm32_get(const struct device *dev, enum sensor_channel chan,
 	if (chan == SENSOR_CHAN_ROTATION) {
 		val->val1 = dev_data->position >> 6;
 		val->val2 = (dev_data->position & 0x3F) * 15625;
+	} else if (chan == SENSOR_CHAN_ENCODER_COUNT) {
+		val->val1 = dev_data->counts;
+		val->val2 = 0;
 	} else {
 		return -ENOTSUP;
 	}
@@ -82,7 +97,7 @@ static void qdec_stm32_initialize_channel(const struct device *dev, uint32_t ll_
 {
 	const struct qdec_stm32_dev_cfg *const dev_cfg = dev->config;
 
-	LL_TIM_IC_SetActiveInput(dev_cfg->timer_inst, ll_channel, LL_TIM_ACTIVEINPUT_DIRECTTI);
+	LL_TIM_IC_SetActiveInput(dev_cfg->timer_inst, ll_channel, STM32_TIM_ACTIVEINPUT_DIRECT);
 	LL_TIM_IC_SetFilter(dev_cfg->timer_inst, ll_channel,
 			    dev_cfg->input_filtering_level * LL_TIM_IC_FILTER_FDIV1_N2);
 	LL_TIM_IC_SetPrescaler(dev_cfg->timer_inst, ll_channel, LL_TIM_ICPSC_DIV1);
@@ -100,11 +115,6 @@ static int qdec_stm32_initialize(const struct device *dev)
 	retval = pinctrl_apply_state(dev_cfg->pin_config, PINCTRL_STATE_DEFAULT);
 	if (retval < 0) {
 		return retval;
-	}
-
-	if (!device_is_ready(DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE))) {
-		LOG_ERR("Clock control device not ready");
-		return -ENODEV;
 	}
 
 	retval = clock_control_on(DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE),

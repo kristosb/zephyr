@@ -10,7 +10,6 @@
 #include <zephyr/input/input.h>
 #include <zephyr/input/input_kbd_matrix.h>
 #include <zephyr/kernel.h>
-#include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/pm/device.h>
 #include <zephyr/pm/device_runtime.h>
@@ -26,7 +25,7 @@ void input_kbd_matrix_poll_start(const struct device *dev)
 	k_sem_give(&data->poll_lock);
 }
 
-static bool input_kbd_matrix_ghosting(const struct device *dev)
+bool input_kbd_matrix_ghosting(const struct device *dev)
 {
 	const struct input_kbd_matrix_common_config *cfg = dev->config;
 	const kbd_row_t *state = cfg->matrix_new_state;
@@ -132,7 +131,7 @@ static bool input_kbd_matrix_scan(const struct device *dev)
 	return key_event != 0U;
 }
 
-static void input_kbd_matrix_update_state(const struct device *dev)
+void input_kbd_matrix_update_state(const struct device *dev)
 {
 	const struct input_kbd_matrix_common_config *cfg = dev->config;
 	struct input_kbd_matrix_common_data *data = dev->data;

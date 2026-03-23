@@ -359,7 +359,13 @@ ZTEST(spi_loopback, test_spi_complete_multiple_timed)
 	 */
 	zassert_ok(pm_device_runtime_get(spec->bus));
 
-	/* since this is a test program, there shouldn't be much to interfere with measurement */
+	/*
+	 * since this is a test program, there shouldn't be much to interfere with measurement.
+	 * still let's wait for the console to complete printing so it does not complete and
+	 * suspend near the end of the spi transaction.
+	 */
+	k_msleep(10);
+
 	start_time = k_cycle_get_32();
 	spi_loopback_transceive(spec, &tx, &rx, 2);
 	end_time = k_cycle_get_32();
@@ -1007,17 +1013,23 @@ ZTEST(spi_extra_api_features, test_spi_lock_release)
 							      NULL, BUF_SIZE);
 	struct spi_dt_spec *lock_spec = &spi_slow;
 	struct spi_dt_spec *try_spec = &spi_fast;
+	int ret;
 
 	lock_spec->config.operation |= SPI_LOCK_ON;
 
 	zassert_ok(pm_device_runtime_get(lock_spec->bus));
-	spi_loopback_transceive(lock_spec, &tx, &rx, 2);
-	zassert_false(spi_release_dt(lock_spec), "SPI release failed");
+	spi_loopback_gpio_cs_loopback_prepare();
+	ret = spi_transceive_dt(lock_spec, &tx, &rx);
+	if (ret == -EINVAL || ret == -ENOTSUP) {
+		TC_PRINT("SPI_LOCK_ON not supported for this controller\n");
+		zassert_ok(pm_device_runtime_put(lock_spec->bus));
+		ztest_test_skip();
+	}
+	zassert_ok(ret, "SPI transceive failed, code %d", ret);
+	zassert_ok(spi_loopback_gpio_cs_loopback_check(2));
 	zassert_ok(pm_device_runtime_put(lock_spec->bus));
-
+	zassert_ok(spi_release_dt(lock_spec), "SPI release failed");
 	spi_loopback_transceive(try_spec, &tx, &rx, 2);
-
-	lock_spec->config.operation &= ~SPI_LOCK_ON;
 }
 
 ZTEST(spi_extra_api_features, test_spi_hold_on_cs)

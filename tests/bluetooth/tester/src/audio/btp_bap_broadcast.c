@@ -15,6 +15,7 @@
 
 #include <zephyr/autoconf.h>
 #include <zephyr/bluetooth/addr.h>
+#include <zephyr/bluetooth/assigned_numbers.h>
 #include <zephyr/bluetooth/audio/audio.h>
 #include <zephyr/bluetooth/audio/bap.h>
 #include <zephyr/bluetooth/audio/cap.h>
@@ -36,7 +37,6 @@
 #include "btp_bap_audio_stream.h"
 #include "bap_endpoint.h"
 #include "btp/btp.h"
-#include "btp_bap_audio_stream.h"
 #include "btp_bap_broadcast.h"
 
 #define LOG_MODULE_NAME bttester_bap_broadcast
@@ -76,8 +76,9 @@ struct btp_bap_broadcast_local_source *
 btp_bap_broadcast_local_source_allocate(uint32_t broadcast_id)
 {
 	for (size_t i = 0; i < ARRAY_SIZE(local_sources); i++) {
-		if (local_sources[i].broadcast_id == broadcast_id) {
-			LOG_ERR("Local source already allocated for broadcast id %d", broadcast_id);
+		if (local_sources[i].allocated && local_sources[i].broadcast_id == broadcast_id) {
+			LOG_ERR("Local source already allocated for broadcast id 0x%06X",
+				broadcast_id);
 
 			return NULL;
 		}
@@ -96,7 +97,7 @@ btp_bap_broadcast_local_source_allocate(uint32_t broadcast_id)
 	return NULL;
 }
 
-static int btp_bap_broadcast_local_source_free(struct btp_bap_broadcast_local_source *source)
+int btp_bap_broadcast_local_source_free(struct btp_bap_broadcast_local_source *source)
 {
 	if (source == NULL) {
 		return -EINVAL;
@@ -111,7 +112,7 @@ struct btp_bap_broadcast_local_source *
 btp_bap_broadcast_local_source_from_src_id_get(uint32_t source_id)
 {
 	for (size_t i = 0; i < ARRAY_SIZE(local_sources); i++) {
-		if (local_sources[i].source_id == source_id) {
+		if (local_sources[i].allocated && local_sources[i].source_id == source_id) {
 			return &local_sources[i];
 		}
 	}
@@ -125,7 +126,7 @@ static struct btp_bap_broadcast_local_source *
 btp_bap_broadcast_local_source_from_brcst_id_get(uint32_t broadcast_id)
 {
 	for (size_t i = 0; i < ARRAY_SIZE(local_sources); i++) {
-		if (local_sources[i].broadcast_id == broadcast_id) {
+		if (local_sources[i].allocated && local_sources[i].broadcast_id == broadcast_id) {
 			return &local_sources[i];
 		}
 	}
@@ -1680,12 +1681,6 @@ uint8_t btp_bap_broadcast_assistant_add_src(const void *cmd, uint16_t cmd_len, v
 		struct bt_bap_bass_subgroup *subgroup = &delegator_subgroups[i];
 
 		subgroup->bis_sync = sys_get_le32(ptr);
-		if (subgroup->bis_sync != BT_BAP_BIS_SYNC_NO_PREF) {
-			/* For semantic purposes Zephyr API uses BIS Index bitfield
-			 * where BIT(1) means BIS Index 1
-			 */
-			subgroup->bis_sync <<= 1;
-		}
 
 		ptr += sizeof(subgroup->bis_sync);
 		subgroup->metadata_len = *ptr;
@@ -1751,12 +1746,6 @@ uint8_t btp_bap_broadcast_assistant_modify_src(const void *cmd, uint16_t cmd_len
 		struct bt_bap_bass_subgroup *subgroup = &delegator_subgroups[i];
 
 		subgroup->bis_sync = sys_get_le32(ptr);
-		if (subgroup->bis_sync != BT_BAP_BIS_SYNC_NO_PREF) {
-			/* For semantic purposes Zephyr API uses BIS Index bitfield
-			 * where BIT(1) means BIS Index 1
-			 */
-			subgroup->bis_sync <<= 1;
-		}
 
 		ptr += sizeof(subgroup->bis_sync);
 		subgroup->metadata_len = *ptr;
